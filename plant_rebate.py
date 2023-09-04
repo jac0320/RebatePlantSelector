@@ -7,7 +7,6 @@ import webbrowser
 
 st.set_page_config(layout='wide')
 
-plant_pic_dir = './downloaded_images'
 
 @st.cache_data
 def convert_df(df):
@@ -20,9 +19,6 @@ def render_app():
 
     if 'wishlist' not in st.session_state:
         st.session_state['wishlist'] = []
-
-    if 'pic_dir' not in st.session_state:
-        st.session_state['pic_dir'] = os.listdir(plant_pic_dir)
 
     df = pd.read_json("Valley_Water_Qualified_Plants_sourced.json")
     df = df.reset_index(drop=True)
@@ -133,10 +129,8 @@ def render_app():
                     use_container_width=True
                 )
 
-                plant_pics = {file.strip('.jpg').split('_')[-1]: file for file in st.session_state.pic_dir if file.startswith(f"{plant['Scientific_Name']}_") or file.startswith(f"{plant['Plant_Name']}_")}
-                for i, pic in plant_pics.items():
+                for i, pic in plant['source'].items():
                     try:
-                        # st.image(f"{plant_pic_dir}/{pic}", use_column_width=True, caption=plant['source'].get(i))  # Use local cache
                         st.image(plant['source'].get(i), use_column_width=True, caption=plant['source'].get(i))
                     except Exception as err:
                         st.write(f"☹️ error loading image due to {err}")
@@ -165,13 +159,10 @@ def render_app():
             wishlist_cols[0].write(f"{plant['Scientific_Name']} | {plant['Plant_Name']}")
             qty = wishlist_cols[1].number_input("Quantity", key=f"wishlist_qty_{idx}", min_value=1, value=1, label_visibility="collapsed")
             wishlist_cols[2].button("❌", key=f"wishlist_remove_{idx}", on_click=remove_from_wishlist, args=[idx])
-            plant_pics = [file for file in st.session_state.pic_dir if file.startswith(f"{plant['Scientific_Name']}_0") or file.startswith(f"{plant['Plant_Name']}_0")]
-            for pic in plant_pics:
-                try:
-                    # st.sidebar.image(f"{plant_pic_dir}/{pic}", use_column_width=True, caption=plant['source'].get("0"))  # Use local cache
-                    st.sidebar.image(plant['source'].get("0"), use_column_width=True)
-                except Exception as err:
-                    st.sidebar.write(f"☹️ error loading image due to {err}")
+            try:
+                st.sidebar.image(plant['source'].get("0"), use_column_width=True, caption=plant['source'].get("0"))
+            except Exception as err:
+                st.sidebar.write(f"☹️ error loading image due to {err}")
 
             total_coverage += qty * int(plant["Coverage"])
 
