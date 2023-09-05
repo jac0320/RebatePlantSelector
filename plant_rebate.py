@@ -23,11 +23,16 @@ def render_app():
 
     st.title("🌿🌵Valley Water Rebate Plants View💐🌾")
 
+    st.info("This app is to help you navigate plant selection for you [Valley Water Landscape Rebate Program](https://valleywater.dropletportal.com/)")
+
     if 'wishlist' not in st.session_state:
         st.session_state['wishlist'] = []
     
     if 'chat_dialogue' not in st.session_state:
-        st.session_state['chat_dialogue'] = []
+        st.session_state['chat_dialogue'] = [{"role": "system"}]
+
+    if 'chat_dialogue_display' not in st.session_state:
+        st.session_state['chat_dialogue_display'] = []
 
     chat_model = ChatOpenAI(
         model_name='gpt-3.5-turbo',
@@ -102,7 +107,7 @@ def render_app():
         webbrowser.open_new_tab(f"https://www.google.com/search?q={keyword}")
 
     def clear_history():
-        st.session_state['chat_dialogue'] = []
+        st.session_state['chat_dialogue'] = [{"role": "system"}]
 
     st.subheader(f"{len(df)} Plants Available")
 
@@ -192,26 +197,26 @@ def render_app():
         total_coverage = 0
 
     # Display chat messages from history on app rerun
-    for message in st.session_state.chat_dialogue:
-        if message["role"] == "system":
-            continue
+    for message in st.session_state.chat_dialogue_display:
         with st.chat_message(message["role"]):
             st.markdown(message["content"].content)
 
     selected = st.session_state.orig_df.iloc[st.session_state["wishlist"]]
+
     template = f""" You are a helpful landscape professional who help select plants for my drought-proof garden project in California.
     Currently, the user have selected '{','.join(selected['Scientific_Name'])}' as a combination. You should help provide 
     helpful guidance upon asked. While answering questions, you want to comprehensively consider the garden design, plant combination, 
     planting tips, overall budget for a successful garden project at northern california.
     """
 
-    st.session_state.chat_dialogue.append({"role": "system", "content": SystemMessage(content=template)})
+    if template != st.session_state.chat_dialogue[0].get('content', ''):  # Reset dialogue when user updates the cart
+        st.session_state.chat_dialogue = [{"role": "system", "content": SystemMessage(content=template)}]
 
     if prompt := st.chat_input("Type your response"):
 
         st.session_state.chat_dialogue.append({"role": "user", "content": HumanMessage(content=prompt)})
+        st.session_state.chat_dialogue_display.append({"role": "user", "content": HumanMessage(content=prompt)})
 
-        # Display user message in chat message container
         with st.chat_message("user"):
             st.markdown(prompt)
         
@@ -220,8 +225,8 @@ def render_app():
             response = chat_model([i["content"] for i in st.session_state.chat_dialogue])
             message_placeholder.markdown(response.content + "▌")
         
-        # Add assistant response to chat history
         st.session_state.chat_dialogue.append({"role": "assistant", "content": AIMessage(content=response.content)})
+        st.session_state.chat_dialogue_display.append({"role": "assistant", "content": AIMessage(content=response.content)})
 
 
 render_app()
