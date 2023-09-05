@@ -1,8 +1,14 @@
 import streamlit as st
 import pandas as pd
 from math import ceil
-import os
-from copy import deepcopy
+from langchain.llms import OpenAI
+from langchain.chat_models import ChatOpenAI
+from langchain.schema import HumanMessage, SystemMessage, AIMessage
+from langchain.prompts.chat import (
+    ChatPromptTemplate,
+    SystemMessagePromptTemplate,
+    HumanMessagePromptTemplate,
+)
 import webbrowser
 
 st.set_page_config(layout='wide')
@@ -19,6 +25,14 @@ def render_app():
 
     if 'wishlist' not in st.session_state:
         st.session_state['wishlist'] = []
+    
+    if 'chat_dialogue' not in st.session_state:
+        st.session_state['chat_dialogue'] = []
+
+    chat_model = ChatOpenAI(
+        model_name='gpt-3.5-turbo',
+        temperature=0.7
+    )
 
     df = pd.read_json("Valley_Water_Qualified_Plants_sourced.json")
     df = df.reset_index(drop=True)
@@ -63,7 +77,6 @@ def render_app():
 
         df = df[df.Coverage > 0]
         df = df[(df.Coverage >= coverage_min) & (df.Coverage <= coverage_max)]
-
     else:
         df = df[df['Scientific_Name'].str.contains(search_str) | df['Plant_Name'].str.contains(search_str)]
 
@@ -87,6 +100,9 @@ def render_app():
 
     def search_google(keyword):
         webbrowser.open_new_tab(f"https://www.google.com/search?q={keyword}")
+
+    def clear_history():
+        st.session_state['chat_dialogue'] = []
 
     st.subheader(f"{len(df)} Plants Available")
 
@@ -140,7 +156,11 @@ def render_app():
             col = (col + 1) % row_size
 
     ## Show wish list
+
+    wishlist_summary = st.sidebar.container()
+    
     st.sidebar.header("My Wish List")
+    st.sidebar.button("Clear Chat History", use_container_width=True, on_click=clear_history)
     st.sidebar.button("Clear Wish List", use_container_width=True, on_click=clear_wishlist)
     st.sidebar.download_button(
         "Download Wish List",
@@ -150,7 +170,8 @@ def render_app():
         key='download-csv',
         use_container_width=True
     )
-    wishlist_summary = st.sidebar.container()
+
+    
     if len(st.session_state["wishlist"]) > 0:
         selected = st.session_state.orig_df.iloc[st.session_state["wishlist"]]
         total_coverage = 0
@@ -167,5 +188,40 @@ def render_app():
             total_coverage += qty * int(plant["Coverage"])
 
         wishlist_summary.info(f"Selected {len(selected)} Plants. Covering {total_coverage} sqft")
+    else:
+        total_coverage = 0
+
+    # Display chat messages from history on app rerun
+    for message in st.session_state.chat_dialogue:
+        if message["role"] == "system":
+            continue
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"].content)
+
+    selected = st.session_state.orig_df.iloc[st.session_state["wishlist"]]
+    template = f""" You are a helpful landscape professional who help select plants for my drought-proof garden project in California.
+    Currently, the user have selected '{','.join(selected['Scientific_Name'])}' as a combination. You should help provide 
+    helpful guidance upon asked. While answering questions, you want to comprehensively consider the garden design, plant combination, 
+    planting tips, overall budget for a successful garden project at northern california.
+    """
+
+    st.session_state.chat_dialogue.append({"role": "system", "content": SystemMessage(content=template)})
+
+    if prompt := st.chat_input("Type your response"):
+
+        st.session_state.chat_dialogue.append({"role": "user", "content": HumanMessage(content=prompt)})
+
+        # Display user message in chat message container
+        with st.chat_message("user"):
+            st.markdown(prompt)
+        
+        with st.chat_message("assistant"):
+            message_placeholder = st.empty()
+            response = chat_model([i["content"] for i in st.session_state.chat_dialogue])
+            message_placeholder.markdown(response.content + "▌")
+        
+        # Add assistant response to chat history
+        st.session_state.chat_dialogue.append({"role": "assistant", "content": AIMessage(content=response.content)})
+
 
 render_app()
