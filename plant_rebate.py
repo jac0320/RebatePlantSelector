@@ -19,6 +19,90 @@ def convert_df(df):
    return df.to_csv(index=False).encode('utf-8')
 
 
+def clear_wishlist():
+    st.session_state["wishlist"] = []
+
+
+def add_to_wishlist(plant_index):
+    st.session_state["wishlist"][plant_index] = 1
+
+
+def remove_from_wishlist(plant_index):
+    if plant_index in st.session_state.wishlist:
+        st.session_state["wishlist"].pop(plant_index)
+
+
+def search_google(keyword):
+    webbrowser.open_new_tab(f"https://www.google.com/search?q={keyword}")
+
+
+def render_grid(df, key=""):
+
+    if not df.empty:
+
+        controls = st.columns(3)
+        with controls[0]:
+            batch_size = st.select_slider("Batch size:",range(10,110,10), key=f"{key}_batch_size")
+        with controls[1]:
+            row_size = st.select_slider("Row size:", range(1,6), value = 4, key=f"{key}_row_size")
+        num_batches = ceil(len(df)/batch_size)
+        with controls[2]:
+            page = st.selectbox("Page", range(1,num_batches+1), key=f"{key}_page")
+
+        batch = df[(page-1)*batch_size : page*batch_size]
+        st.dataframe(batch, use_container_width=True)
+        
+        grid = st.columns(row_size)
+        col = 0
+
+        for idx, plant in batch.to_dict(orient='index').items():
+
+            with grid[col]:
+
+                if key == "selected":
+                    button_cols = st.columns([0.7, 0.2, 0.1])
+                else:
+                    button_cols = st.columns([0.8, 0.2])
+
+                button_cols[0].button(
+                    f"{plant['Scientific_Name']} - {plant['Plant_Name']} - {plant['Coverage']} sqft", 
+                    key=f"{key}_google_{idx}",
+                    on_click=search_google, 
+                    args=[f"{plant['Scientific_Name']}"], 
+                    type="primary", 
+                    use_container_width=True
+                )
+
+                if key == "selected":
+                    st.session_state.wishlist[idx] = button_cols[1].number_input("Quantity", key=f"{key}_wishlist_qty_{idx}", min_value=1, value=1, label_visibility="collapsed")
+                    button_cols[2].button(
+                        "🗑️",
+                        key=f"{key}_cart_{idx}",
+                        on_click=remove_from_wishlist,
+                        args=[idx],
+                        type="secondary",
+                        use_container_width=True
+                    )
+                else:
+                    button_cols[1].button(
+                        "🛒",
+                        key=f"{key}_cart_{idx}",
+                        on_click=add_to_wishlist,
+                        args=[idx],
+                        type="secondary",
+                        use_container_width=True
+                    )
+
+                for i, _ in plant['source'].items():
+                    try:
+                        st.image(plant['source'].get(i), use_column_width=True, caption=plant['source'].get(i))
+                    except Exception as err:
+                        st.write(f"☹️ error loading image due to {err}")
+
+                st.divider()
+
+            col = (col + 1) % row_size
+
 def render_app():
 
     st.title("🌿🌵Valley Water Rebate Plants View💐🌾")
@@ -26,7 +110,7 @@ def render_app():
     st.info("This app is to help you navigate plant selection for you [Valley Water Landscape Rebate Program](https://valleywater.dropletportal.com/)")
 
     if 'wishlist' not in st.session_state:
-        st.session_state['wishlist'] = []
+        st.session_state['wishlist'] = {}
     
     if 'chat_dialogue' not in st.session_state:
         st.session_state['chat_dialogue'] = [{"role": "system"}]
@@ -90,118 +174,55 @@ def render_app():
     ### Sidebar Wish List
     st.sidebar.divider()
 
-    def clear_wishlist():
-        st.session_state["wishlist"] = []
-
-    def add_to_wishlist(plant_index):
-        if plant_index in st.session_state.wishlist:
-            st.session_state["wishlist"].remove(plant_index)
-        else:
-            st.session_state["wishlist"].append(plant_index)
-
-    def remove_from_wishlist(plant_index):
-        if plant_index in st.session_state.wishlist:
-            st.session_state["wishlist"].remove(plant_index)
-
-    def search_google(keyword):
-        webbrowser.open_new_tab(f"https://www.google.com/search?q={keyword}")
-
     def clear_history():
         st.session_state['chat_dialogue'] = [{"role": "system"}]
 
-    st.subheader(f"{len(df)} Plants Available")
+    tab_available, tab_selected = st.tabs(["Available Plant", "Selected Plant 🛒"])
 
-    if not df.empty:
-        controls = st.columns(3)
-        with controls[0]:
-            batch_size = st.select_slider("Batch size:",range(10,110,10))
-        with controls[1]:
-            row_size = st.select_slider("Row size:", range(1,6), value = 4)
-        num_batches = ceil(len(df)/batch_size)
-        with controls[2]:
-            page = st.selectbox("Page", range(1,num_batches+1))
-
-        batch = df[(page-1)*batch_size : page*batch_size]
-        st.dataframe(batch, use_container_width=True)
+    with tab_available:
+        st.subheader(f"{len(df)} Plants Available")
+        render_grid(df[~df.index.isin(list(st.session_state["wishlist"].keys()))], key="available")
         
-        grid = st.columns(row_size)
-        col = 0
-
-        for idx, plant in batch.to_dict(orient='index').items():
-
-            with grid[col]:
-                button_cols = st.columns([0.8, 0.2])
-
-                button_cols[0].button(
-                    f"{plant['Scientific_Name']} | {plant['Plant_Name']} | {plant['Coverage']} sqft", 
-                    key=f"google_{idx}",
-                    on_click=search_google, 
-                    args=[f"{plant['Scientific_Name']}"], 
-                    type="primary", 
-                    use_container_width=True
-                )
-
-                button_cols[1].button(
-                    "🛒",
-                    key=f"cart_{idx}",
-                    on_click=add_to_wishlist,
-                    args=[idx],
-                    type="secondary",
-                    use_container_width=True
-                )
-
-                for i, pic in plant['source'].items():
-                    try:
-                        st.image(plant['source'].get(i), use_column_width=True, caption=plant['source'].get(i))
-                    except Exception as err:
-                        st.write(f"☹️ error loading image due to {err}")
-
-                st.divider()
-
-            col = (col + 1) % row_size
+    with tab_selected:
+        if len(st.session_state["wishlist"].keys()) == 0:
+            st.subheader("Add plants to your wish list from Available Plant 🌿 Tab")
+        else:
+            render_grid(st.session_state.orig_df.iloc[list(st.session_state["wishlist"].keys())], key="selected")
 
     ## Show wish list
-
     wishlist_summary = st.sidebar.container()
     
-    st.sidebar.header("My Wish List")
-    st.sidebar.button("Clear Chat History", use_container_width=True, on_click=clear_history)
-    st.sidebar.button("Clear Wish List", use_container_width=True, on_click=clear_wishlist)
+
+    st.sidebar.header("Your Wish List")
+
+    if len(st.session_state["wishlist"]) > 0:
+        selected = st.session_state.orig_df.iloc[list(st.session_state["wishlist"].keys())]
+        total_coverage = 0
+        for idx, plant in selected.to_dict(orient='index').items():
+            total_coverage += st.session_state.wishlist[idx] * int(plant["Coverage"])
+    else:
+        selected = {}
+        total_coverage = 0
+
+    st.sidebar.info(f"Selected {len(selected)} Plants | Total Coverage is {total_coverage}")
+
+    st.sidebar.button("🤖 Clear Chat History", use_container_width=True, on_click=clear_history)
+    st.sidebar.button("🫙 Clear Wish List", use_container_width=True, on_click=clear_wishlist)
     st.sidebar.download_button(
-        "Download Wish List",
-        convert_df(st.session_state.orig_df.iloc[st.session_state["wishlist"]]),
+        "🗳️ Download Wish List",
+        convert_df(st.session_state.orig_df.iloc[list(st.session_state["wishlist"].keys())]),
         "wishlist.csv",
         "text/csv",
         key='download-csv',
         use_container_width=True
     )
 
-    
-    if len(st.session_state["wishlist"]) > 0:
-        selected = st.session_state.orig_df.iloc[st.session_state["wishlist"]]
-        total_coverage = 0
-        for idx, plant in selected.to_dict(orient='index').items():
-            wishlist_cols = st.sidebar.columns([50, 30, 20])
-            wishlist_cols[0].write(f"{plant['Scientific_Name']} | {plant['Plant_Name']}")
-            qty = wishlist_cols[1].number_input("Quantity", key=f"wishlist_qty_{idx}", min_value=1, value=1, label_visibility="collapsed")
-            wishlist_cols[2].button("❌", key=f"wishlist_remove_{idx}", on_click=remove_from_wishlist, args=[idx])
-            try:
-                st.sidebar.image(plant['source'].get("0"), use_column_width=True, caption=plant['source'].get("0"))
-            except Exception as err:
-                st.sidebar.write(f"☹️ error loading image due to {err}")
-
-            total_coverage += qty * int(plant["Coverage"])
-
-        wishlist_summary.info(f"Selected {len(selected)} Plants. Covering {total_coverage} sqft")
-    else:
-        total_coverage = 0
-
     # Display chat messages from history on app rerun
     for message in st.session_state.chat_dialogue_display:
         with st.chat_message(message["role"]):
             st.markdown(message["content"].content)
 
-    selected = st.session_state.orig_df.iloc[st.session_state["wishlist"]]
+    selected = st.session_state.orig_df.iloc[list(st.session_state["wishlist"].keys())]
 
     template = f""" You are a helpful landscape professional who help select plants for my drought-proof garden project in California.
     Currently, the user have selected '{','.join(selected['Scientific_Name'])}' as a combination. You should help provide 
@@ -225,7 +246,7 @@ def render_app():
             response = chat_model([i["content"] for i in st.session_state.chat_dialogue])
             message_placeholder.markdown(response.content + "▌")
         
-        st.session_state.chat_dialogue.append({"role": "assistant", "content": AIMessage(content=response.content)})
+        st.session_state.chat_dialogue.append({"role": "assistant", "gcontent": AIMessage(content=response.content)})
         st.session_state.chat_dialogue_display.append({"role": "assistant", "content": AIMessage(content=response.content)})
 
 
