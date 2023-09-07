@@ -223,7 +223,9 @@ def render_app():
 
     user_filter = {}
 
-    st.session_state['openai_api_key'] = st.sidebar.text_input("OPENAI_API_KEY", value=os.environ.get("OPENAI_API_KEY"), type="password")
+    st.session_state['openai_api_key'] = st.sidebar.text_input("OPENAI_API_KEY", value=os.environ.get("OPENAI_API_KEY", ""), type="password")
+    if len(st.session_state['openai_api_key']) == 0:
+        st.sidebar.warning("Add your OPENAI_API_KEY to use chat functionality.")
 
     # Sidebar Filters
     st.sidebar.header("Filters")
