@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from math import ceil
+import os
 from langchain.llms import OpenAI
 from langchain.chat_models import ChatOpenAI
 from langchain.schema import HumanMessage, SystemMessage, AIMessage
@@ -134,7 +135,8 @@ def render_chatbot():
     chat_model = ChatOpenAI(
         model_name='gpt-3.5-turbo',
         temperature=0.7,
-        streaming=True
+        streaming=True,
+        openai_api_key=st.session_state.openai_api_key
     )
 
     selected = st.session_state.orig_df.iloc[list(st.session_state["wishlist"].keys())]
@@ -170,7 +172,6 @@ def render_chatbot():
             st_cb = StreamlitCallbackHandler(st.container(), expand_new_thoughts=False)
             try:
                 response = pandas_df_agent.run(st.session_state.chat_dialogue, callbacks=[st_cb])
-                raise ValueError
             except Exception as err:
                 fallback_dialogue = []
                 for i in st.session_state.chat_dialogue:
@@ -222,6 +223,8 @@ def render_app():
 
     user_filter = {}
 
+    st.session_state['openai_api_key'] = st.sidebar.text_input("OPENAI_API_KEY", value=os.environ.get("OPENAI_API_KEY"), type="password")
+
     # Sidebar Filters
     st.sidebar.header("Filters")
     search_str = st.sidebar.selectbox("Search by Name", options=[""] + df['Scientific_Name'].unique().tolist() + df['Plant_Name'].unique().tolist(), index=0, placeholder="")
@@ -251,7 +254,7 @@ def render_app():
     tab_available, tab_selected = st.tabs(["🌿 Available Plant", "🛒 Selected Plant"])
 
     with tab_available:
-        st.subheader(f"{len(df)} Plants Available")
+        st.subheader(f"{len(df)} Total Plants Available. Change the view settings to see them.")
         render_grid(df[~df.index.isin(list(st.session_state["wishlist"].keys()))], key="available")
         
     with tab_selected:
