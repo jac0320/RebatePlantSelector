@@ -187,7 +187,7 @@ def render_chatbot():
 
 def render_app():
 
-    st.title("🌿🌵Valley Water Rebate Plants View💐🌾")
+    st.title("🌿🌵 Valley Water Rebate Program Plants Selector 💐🌾")
 
     help_doc()
 
