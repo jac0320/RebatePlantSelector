@@ -291,7 +291,8 @@ def render_app():
         use_container_width=True
     )
 
-    render_chatbot()
+    if len(st.session_state.openai_api_key) > 0:
+        render_chatbot()
 
 
 render_app()
