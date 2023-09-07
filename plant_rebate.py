@@ -50,9 +50,9 @@ def render_grid(df, key=""):
 
         controls = st.columns(3)
         with controls[0]:
-            batch_size = st.select_slider("Batch size:",range(10,110,10), value=40, key=f"{key}_batch_size")
+            batch_size = st.select_slider("Batch size:",range(10,110,10), value=10, key=f"{key}_batch_size")
         with controls[1]:
-            row_size = st.select_slider("Row size:", range(1,16), value = 6, key=f"{key}_row_size")
+            row_size = st.select_slider("Row size:", range(1,16), value=4, key=f"{key}_row_size")
         num_batches = ceil(len(df)/batch_size)
         with controls[2]:
             page = st.selectbox("Page", range(1,num_batches+1), key=f"{key}_page")
