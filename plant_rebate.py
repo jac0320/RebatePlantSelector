@@ -9,6 +9,9 @@ from langchain.prompts.chat import (
     SystemMessagePromptTemplate,
     HumanMessagePromptTemplate,
 )
+from langchain.agents import AgentType
+from langchain.agents import create_pandas_dataframe_agent
+from langchain.callbacks import StreamlitCallbackHandler
 import webbrowser
 
 st.set_page_config(layout='wide')
@@ -46,9 +49,9 @@ def render_grid(df, key=""):
 
         controls = st.columns(3)
         with controls[0]:
-            batch_size = st.select_slider("Batch size:",range(10,110,10), key=f"{key}_batch_size")
+            batch_size = st.select_slider("Batch size:",range(10,110,10), value=40, key=f"{key}_batch_size")
         with controls[1]:
-            row_size = st.select_slider("Row size:", range(1,6), value = 4, key=f"{key}_row_size")
+            row_size = st.select_slider("Row size:", range(1,16), value = 6, key=f"{key}_row_size")
         num_batches = ceil(len(df)/batch_size)
         with controls[2]:
             page = st.selectbox("Page", range(1,num_batches+1), key=f"{key}_page")
@@ -121,46 +124,65 @@ def help_doc():
         st.divider()
 
 
-
 def render_chatbot():
+
+    for msg in st.session_state.chat_dialogue:
+        if msg["role"] == "system":
+            continue
+        st.chat_message(msg["role"]).write(msg["content"])
 
     chat_model = ChatOpenAI(
         model_name='gpt-3.5-turbo',
-        temperature=0.7
+        temperature=0.7,
+        streaming=True
     )
-
-    # Display chat messages from history on app rerun
-    for message in st.session_state.chat_dialogue_display:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"].content)
 
     selected = st.session_state.orig_df.iloc[list(st.session_state["wishlist"].keys())]
 
     template = f""" You are a helpful landscape professional who help select plants for my drought-proof garden project in California.
     Currently, the user have selected '{','.join(selected['Scientific_Name'])}' as a combination. You should help provide 
     helpful guidance upon asked. While answering questions, you want to comprehensively consider the garden design, plant combination, 
-    planting tips, overall budget for a successful garden project at northern california.
+    planting tips, overall budget for a successful garden project at northern california. Try to be percise with your answer. Try to 
+    answer in short sentences. The dataframe I will be passing are available plants in this program for selection. I can continue to add 
+    them into my selection.
     """
 
     if template != st.session_state.chat_dialogue[0].get('content', ''):  # Reset dialogue when user updates the cart
-        st.session_state.chat_dialogue = [{"role": "system", "content": SystemMessage(content=template)}]
+        st.session_state.chat_dialogue = [{"role": "system", "content": template}]
 
-    if prompt := st.chat_input("Type your response"):
+    def _handle_error(error) -> str:
+        return str(error)[:50]
 
-        st.session_state.chat_dialogue.append({"role": "user", "content": HumanMessage(content=prompt)})
-        st.session_state.chat_dialogue_display.append({"role": "user", "content": HumanMessage(content=prompt)})
+    pandas_df_agent = create_pandas_dataframe_agent(
+        chat_model,
+        st.session_state.orig_df,
+        verbose=True,
+        agent_type=AgentType.OPENAI_FUNCTIONS,
+        handle_parsing_errors=_handle_error,
+    )
 
-        with st.chat_message("user"):
-            st.markdown(prompt)
+    if prompt := st.chat_input(placeholder="What is this data about?"):
         
+        st.session_state.chat_dialogue.append({"role": "user", "content": prompt})
+        st.chat_message("user").write(prompt)
+
         with st.chat_message("assistant"):
-            message_placeholder = st.empty()
-            response = chat_model([i["content"] for i in st.session_state.chat_dialogue])
-            message_placeholder.markdown(response.content + "▌")
-        
-        st.session_state.chat_dialogue.append({"role": "assistant", "gcontent": AIMessage(content=response.content)})
-        st.session_state.chat_dialogue_display.append({"role": "assistant", "content": AIMessage(content=response.content)})
-
+            st_cb = StreamlitCallbackHandler(st.container(), expand_new_thoughts=False)
+            try:
+                response = pandas_df_agent.run(st.session_state.chat_dialogue, callbacks=[st_cb])
+                raise ValueError
+            except Exception as err:
+                fallback_dialogue = []
+                for i in st.session_state.chat_dialogue:
+                    if i['role'] == 'system':
+                        fallback_dialogue.append({"role": "system", "content": SystemMessage(content=i['content'])})
+                    elif i['role'] == 'user':
+                        fallback_dialogue.append({"role": "system", "content": HumanMessage(content=i['content'])})
+                    elif i['role'] == 'assistant':
+                        fallback_dialogue.append({"role": "system", "content": AIMessage(content=i['content'])})
+                response = chat_model([i["content"] for i in fallback_dialogue]).content
+            st.session_state.chat_dialogue.append({"role": "assistant", "content": response})
+            st.write(response)
 
 def render_app():
 
@@ -170,7 +192,7 @@ def render_app():
 
     if 'wishlist' not in st.session_state:
         st.session_state['wishlist'] = {}
-    
+
     if 'chat_dialogue' not in st.session_state:
         st.session_state['chat_dialogue'] = [{"role": "system"}]
 
