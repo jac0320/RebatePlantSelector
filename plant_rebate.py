@@ -105,11 +105,10 @@ def render_grid(df, key=""):
                     st.write(f"😢 No free picture was found. Click the button to Google for pics.")
                 else:
                     for i, _ in plant['source'].items():
-                        if i == '0':
-                            try:
-                                st.image(plant['source'].get(i), use_column_width=True, caption=plant['source'].get(i))
-                            except Exception as err:
-                                st.write(f"☹️ error loading image due to {err}")
+                        try:
+                            st.image(plant['source'].get(i), use_column_width=True, caption=plant['source'].get(i))
+                        except Exception as err:
+                            st.write(f"☹️ error loading image due to {err}")
 
                 st.divider()
 
@@ -118,9 +117,7 @@ def render_grid(df, key=""):
 
 def help_doc():
 
-    with st.expander("🤔 What is this APP About? 👉"):
-
-        st.markdown("""
+    intro_text = """
             This app is to help non-botanist navigate your garden's plant selection for [Valley Water Landscape Rebate Program](https://valleywater.dropletportal.com/).
             There is a total of 2700+ plants names available. Each plants maps to a specific ground coverage and your goal is to select the favorite 
                 combinations so that it can cover 50% of the area for you land conversion rebate.
@@ -130,10 +127,9 @@ def help_doc():
             - 👀 View/Search the plants (of your interest) with pictures 🖼️
             - 🛒 Collect the candidate plants for your garden wish list
             - 🤖 Chat with an Landscape Professional bot                 
-        """)
-
-        st.divider()
-        st.markdown("""
+        """
+    
+    bot_text = """
             The 🤖 knows what's happening including your selection and available plants database. You can ask:
                     
             * What about the plants selected for my garden?
@@ -144,7 +140,16 @@ def help_doc():
             * Which season will my selected plants bloom/mature?
             * How should I water X(plant)?
             * ...
-        """)
+        """
+    if st.session_state.start_app:
+        with st.expander("🤔 What is this APP About? 👉"):
+            st.markdown(intro_text)
+            st.divider()
+            st.markdown(bot_text)
+    else:
+        st.markdown(intro_text)
+        st.divider()
+        st.markdown(bot_text)
 
 
 def render_chatbot():
@@ -209,8 +214,6 @@ def render_app():
 
     st.title("🌿🌵 Plant Selector | Valley Water Rebate Program 💐🌾")
 
-    # help_doc()
-
     if 'wishlist' not in st.session_state:
         st.session_state['wishlist'] = {}
 
@@ -219,6 +222,14 @@ def render_app():
 
     if 'chat_dialogue_display' not in st.session_state:
         st.session_state['chat_dialogue_display'] = []
+
+    if ('start_app' not in st.session_state) or (not st.session_state.start_app):
+        st.session_state['start_app'] = st.button("☘️ Start App ☘️", use_container_width=True, type="primary")
+
+    help_doc()
+
+    if not st.session_state.start_app:
+        return
 
     df = pd.read_json("Valley_Water_Qualified_Plants_sourced.json")
     df = df.reset_index(drop=True)
@@ -313,8 +324,6 @@ def render_app():
 
     if len(st.session_state.openai_api_key) > 0:
         render_chatbot()
-
-    help_doc()
 
 
 render_app()
