@@ -118,15 +118,33 @@ def render_grid(df, key=""):
 
 def help_doc():
 
-    with st.expander("🤔 How to use this app?"):
-        st.info("This app is to help you navigate plant selection for you [Valley Water Landscape Rebate Program](https://valleywater.dropletportal.com/)")
+    with st.expander("🤔 What is this APP About? 👉"):
+
+        st.markdown("""
+            This app is to help non-botanist navigate your garden's plant selection for [Valley Water Landscape Rebate Program](https://valleywater.dropletportal.com/).
+            There is a total of 2700+ plants names available. Each plants maps to a specific ground coverage and your goal is to select the favorite 
+                combinations so that it can cover 50% of the area for you land conversion rebate.
+            
+            If you are a garden newbie like me who have no idea how most plants look/grow/maintain 😵‍💫, the 2700 plants names will throw you off. The app is 
+                    built to simplify the process of plant selection for non-. You can use this app to:
+            - 👀 View the plants in pictures
+            - 🛒 Collect the candidate plants for your garden wish list
+            - 🤖 Chat with an Landscape Professional bot                 
+        """)
+
         st.divider()
-        st.image("instructions/main_screen.png", use_column_width=True)
-        st.divider()
-        st.image("instructions/selection.png", use_column_width=True)
-        st.divider()
-        st.image("instructions/chatbot.png", use_column_width=True)
-        st.divider()
+        st.markdown("""
+            The 🤖 knows what's happening including your selection and available plants database. You can ask:
+                    
+            * What about the plants selected for my garden?
+            * How tall X(plant) will grow?
+            * Are my selection pet safe?
+            * Will X(plant) attract pest? If so, what type of pest will it attract?
+            * What are the typical price with the plants I selected?
+            * Which season will my selected plants bloom/mature?
+            * How should I water X(plant)?
+            * ...
+        """)
 
 
 def render_chatbot():
@@ -295,6 +313,8 @@ def render_app():
 
     if len(st.session_state.openai_api_key) > 0:
         render_chatbot()
+
+    help_doc()
 
 
 render_app()
