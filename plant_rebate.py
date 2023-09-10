@@ -127,7 +127,7 @@ def help_doc():
             
             If you are a garden newbie like me who have no idea how most plants look/grow/maintain 😵‍💫, the 2700 plants names will throw you off. The app is 
                     built to simplify the process of plant selection for non-. You can use this app to:
-            - 👀 View the plants in pictures
+            - 👀 View/Search the plants (of your interest) with pictures 🖼️
             - 🛒 Collect the candidate plants for your garden wish list
             - 🤖 Chat with an Landscape Professional bot                 
         """)
