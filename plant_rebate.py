@@ -50,15 +50,15 @@ def render_grid(df, key=""):
 
         controls = st.columns(3)
         with controls[0]:
-            batch_size = st.select_slider("Batch size:",range(10,110,10), value=10, key=f"{key}_batch_size")
+            batch_size = st.select_slider("Batch size:",range(0,51,5), value=5, key=f"{key}_batch_size")
         with controls[1]:
-            row_size = st.select_slider("Row size:", range(1,16), value=4, key=f"{key}_row_size")
+            row_size = st.select_slider("Row size:", range(1,16), value=5, key=f"{key}_row_size")
         num_batches = ceil(len(df)/batch_size)
         with controls[2]:
             page = st.selectbox("Page", range(1,num_batches+1), key=f"{key}_page")
 
         batch = df[(page-1)*batch_size : page*batch_size]
-        st.dataframe(batch, use_container_width=True)
+        # st.dataframe(batch, use_container_width=True)
         
         grid = st.columns(row_size)
         col = 0
@@ -101,11 +101,15 @@ def render_grid(df, key=""):
                         use_container_width=True
                     )
 
-                for i, _ in plant['source'].items():
-                    try:
-                        st.image(plant['source'].get(i), use_column_width=True, caption=plant['source'].get(i))
-                    except Exception as err:
-                        st.write(f"☹️ error loading image due to {err}")
+                if len(plant['source']) == 0:
+                    st.write(f"😢 No free picture was found. Click the button to Google for pics.")
+                else:
+                    for i, _ in plant['source'].items():
+                        if i == '0':
+                            try:
+                                st.image(plant['source'].get(i), use_column_width=True, caption=plant['source'].get(i))
+                            except Exception as err:
+                                st.write(f"☹️ error loading image due to {err}")
 
                 st.divider()
 
@@ -127,10 +131,11 @@ def help_doc():
 
 def render_chatbot():
 
-    for msg in st.session_state.chat_dialogue:
-        if msg["role"] == "system":
+    for message in st.session_state.chat_dialogue:
+        if message["role"] == "system":
             continue
-        st.chat_message(msg["role"]).write(msg["content"])
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"].content)
 
     chat_model = ChatOpenAI(
         model_name='gpt-3.5-turbo',
@@ -152,19 +157,15 @@ def render_chatbot():
     if template != st.session_state.chat_dialogue[0].get('content', ''):  # Reset dialogue when user updates the cart
         st.session_state.chat_dialogue = [{"role": "system", "content": template}]
 
-    def _handle_error(error) -> str:
-        return str(error)[:50]
-
     pandas_df_agent = create_pandas_dataframe_agent(
         chat_model,
         st.session_state.orig_df,
         verbose=True,
         agent_type=AgentType.OPENAI_FUNCTIONS,
-        handle_parsing_errors=_handle_error,
+        handle_parsing_errors=True,
     )
 
-    if prompt := st.chat_input(placeholder="What is this data about?"):
-        
+    if prompt := st.chat_input(placeholder="Ask your question to your landscope AI"):
         st.session_state.chat_dialogue.append({"role": "user", "content": prompt})
         st.chat_message("user").write(prompt)
 
@@ -182,6 +183,7 @@ def render_chatbot():
                     elif i['role'] == 'assistant':
                         fallback_dialogue.append({"role": "system", "content": AIMessage(content=i['content'])})
                 response = chat_model([i["content"] for i in fallback_dialogue]).content
+
             st.session_state.chat_dialogue.append({"role": "assistant", "content": response})
             st.write(response)
 
@@ -189,7 +191,7 @@ def render_app():
 
     st.title("🌿🌵 Plant Selector | Valley Water Rebate Program 💐🌾")
 
-    help_doc()
+    # help_doc()
 
     if 'wishlist' not in st.session_state:
         st.session_state['wishlist'] = {}
