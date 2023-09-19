@@ -158,7 +158,10 @@ def render_chatbot():
         if message["role"] == "system":
             continue
         with st.chat_message(message["role"]):
-            st.markdown(message["content"].content)
+            try:
+                st.markdown(message["content"].content)
+            except:
+                st.markdown(message["content"])
 
     chat_model = ChatOpenAI(
         model_name='gpt-3.5-turbo',
