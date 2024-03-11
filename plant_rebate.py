@@ -234,7 +234,8 @@ def render_app():
     if not st.session_state.start_app:
         return
 
-    df = pd.read_json("Valley_Water_Qualified_Plants_sourced.json")
+    df = pd.read_csv("Valley_Water_Qualified_Plants_sourced.csv")
+
     df = df.reset_index(drop=True)
 
     st.session_state['orig_df'] = df.copy()
